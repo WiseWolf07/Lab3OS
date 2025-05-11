@@ -265,6 +265,6 @@ func main() {
 	durationParallel := time.Since(startParallel)
 	_ = writeMatrixToFile(resultParallel, "./matrices/C.txt")
 	fmt.Printf("Sequential time: %f seconds", durationSequential.Seconds())
-	fmt.Printf("\nParallel time (%d): %f seconds", numProcesses, durationParallel.Seconds())
+	fmt.Printf("\nParallel time (%d processes): %f seconds", numProcesses, durationParallel.Seconds())
 	fmt.Printf("\nSpeedup: %fX \n", durationSequential.Seconds()/durationParallel.Seconds())
 }
