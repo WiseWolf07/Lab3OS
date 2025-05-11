@@ -156,7 +156,7 @@ func multiplyMatricesParallel(a, b [][]float64, numProcesses int) [][]float64 {
 	results := make([][]float64, 0)
 
 	for _, chunk := range chunks {
-		cmd := exec.Command(os.Args[0], "--child") // Lanza este mismo programa como proceso hijo
+		cmd := exec.Command(os.Args[0], "--child")
 
 		stdin, err := cmd.StdinPipe()
 		if err != nil {
@@ -197,24 +197,47 @@ func multiplyMatricesParallel(a, b [][]float64, numProcesses int) [][]float64 {
 }
 
 func askForMethod(a [][]float64) int {
-	fmt.Print("\nType in the number of processes you want to use for the application (1 for secuential): ")
+	fmt.Print("\nType in the number of processes you want to use for the application (greater than 1): ")
 	reader := bufio.NewReader(os.Stdin)
 	input, _ := reader.ReadString('\n')
 	input = strings.TrimSpace(input)
 
 	numProcesses, err := strconv.Atoi(input)
 	if err != nil {
-		fmt.Println("Invalid number, defaulting to 1 proccess.")
-		return 1
+		fmt.Println("Invalid number, defaulting to 2 proccess.")
+		return 2
 	}
 
-	if numProcesses > len(a) {
+	if numProcesses == 1 {
+		fmt.Printf("The number of process have to be greater than 1. Adjusting to 2 processes.\n")
+		return 2
+	} else if numProcesses > len(a) {
 		fmt.Printf("You have more processes than rows in matrix A. Adjusting to %d processes.\n", len(a))
 		return len(a)
 	}
-
-	fmt.Printf("\nMultiplication will be divided into %d processes\n", numProcesses)
 	return numProcesses
+}
+
+func writeMatrixToFile(matrix [][]float64, filePath string) error {
+	file, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("could not create file: %v", err)
+	}
+	defer file.Close()
+
+	writer := bufio.NewWriter(file)
+
+	for _, row := range matrix {
+		var line []string
+		for _, val := range row {
+			line = append(line, fmt.Sprintf("%.2f", val))
+		}
+		_, err := writer.WriteString(strings.Join(line, " ") + "\n")
+		if err != nil {
+			return fmt.Errorf("error writing to file: %v", err)
+		}
+	}
+	return writer.Flush()
 }
 
 func main() {
@@ -232,18 +255,16 @@ func main() {
 		return
 	}
 	numProcesses := askForMethod(a)
-	var result [][]float64
-	var start time.Time
-	if numProcesses == 1 {
-		start = time.Now()
-		result = multiplyMatricesSequential(a, b)
-	} else {
-		start = time.Now()
-		result = multiplyMatricesParallel(a, b, numProcesses)
-	}
-	duration := time.Since(start)
-	for _, row := range result {
-		fmt.Println(row)
-	}
-	fmt.Printf("\nThe time it took the program to multiply the matrices was: %d ns\n", duration.Nanoseconds())
+	var startSequential time.Time
+	var startParallel time.Time
+	startSequential = time.Now()
+	_ = multiplyMatricesSequential(a, b)
+	durationSequential := time.Since(startSequential)
+	startParallel = time.Now()
+	resultParallel := multiplyMatricesParallel(a, b, numProcesses)
+	durationParallel := time.Since(startParallel)
+	_ = writeMatrixToFile(resultParallel, "./matrices/C.txt")
+	fmt.Printf("Sequential time: %f seconds", durationSequential.Seconds())
+	fmt.Printf("\nParallel time (%d): %f seconds", numProcesses, durationParallel.Seconds())
+	fmt.Printf("\nSpeedup: %fX \n", durationSequential.Seconds()/durationParallel.Seconds())
 }
